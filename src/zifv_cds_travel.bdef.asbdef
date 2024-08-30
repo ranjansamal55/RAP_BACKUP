@@ -1,0 +1,98 @@
+managed ;// implementation in class zbp_ifv_cds_travel unique;
+strict ( 2 );
+
+define behavior for ZIFV_CDS_TRAVEL //alias <alias_name>
+implementation in class zcl_bp_ifv_cds_travel unique
+persistent table zdb_travel_srs
+lock master
+authorization master ( instance )
+etag master LastChangedAt
+early numbering
+
+{
+action acceptTravel result [1] $self;
+action rejectTravel result [1] $self;
+
+factory action copyTravel [1];
+
+internal action recalcTotPrice;
+
+  create;
+  update;
+  delete;
+  field ( readonly ) TravelId;
+  association _Booking { create; }
+  mapping for zdb_travel_srs
+    {
+      TravelId      = travel_id;
+      AgencyId      = agency_id;
+      CustomerId    = customer_id;
+      BeginDate     = begin_date;
+      EndDate       = end_date;
+      BookingFee    = booking_fee;
+      TotalPrice    = total_price;
+      CurrencyCode  = currency_code;
+      Description   = description;
+      OverallStatus = overall_status;
+      CreatedBy     = created_by;
+      CreatedAt     = created_at;
+      LastChangedBy = last_changed_by;
+      LastChangedAt = last_changed_at;
+    }
+}
+
+define behavior for ZIFV_CDS_BOOKING //alias <alias_name>
+implementation in class zcl_bp_IFV_CDS_BOOKING unique
+persistent table zdb_booking_srs
+lock dependent by _Travel
+authorization dependent by _Travel
+etag master LastChangedAt
+early numbering
+{
+  update;
+  delete;
+  field ( readonly ) TravelId, BookingId;
+//  field ( readonly )  TravelId;
+  association _Travel;
+  association _Bookingsuppl { create; }
+   mapping for zdb_booking_srs
+    {
+      TravelId      = travel_id;
+      BookingId     = booking_id;
+      BookingDate   = booking_date;
+      CustomerId    = customer_id;
+      CarrierId     = carrier_id;
+      ConnectionId  = connection_id;
+      FlightDate    = flight_date;
+      FlightPrice   = flight_price;
+      CurrencyCode  = currency_code;
+      BookingStatus = booking_status;
+      LastChangedAt = last_changed_at;
+    }
+}
+
+define behavior for ZIFV_CDS_SUPPLIER //alias <alias_name>
+implementation in class zcl_bp_IFV_CDS_SUPPLIER unique
+persistent table zdb_supplier_srs
+lock dependent by _Travel
+authorization dependent by _Travel
+etag master LastChangedAt
+early numbering
+{
+  update;
+  delete;
+  field ( readonly ) TravelId, BookingId, BookingSupplementId;
+//    field ( readonly ) TravelId, BookingId;
+  association _Travel;
+  association _Booking;
+   mapping for zdb_supplier_srs
+    {
+      TravelId            = travel_id;
+      BookingId           = booking_id;
+      BookingSupplementId = booking_supplement_id;
+      SupplementId        = supplement_id;
+      Price               = price;
+      CurrencyCode        = currency_code;
+      LastChangedAt       = last_changed_at;
+    }
+}
