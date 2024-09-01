@@ -14,6 +14,21 @@ CLASS lhc_ZIFV_CDS_TRAVEL DEFINITION INHERITING FROM cl_abap_behavior_handler.
 
     METHODS rejecttravel FOR MODIFY
       IMPORTING keys FOR ACTION zifv_cds_travel~rejecttravel RESULT result.
+    METHODS get_instance_features FOR INSTANCE FEATURES
+      IMPORTING keys REQUEST requested_features FOR zifv_cds_travel RESULT result.
+    METHODS validate_customer FOR VALIDATE ON SAVE
+      IMPORTING keys FOR zifv_cds_travel~validate_customer.
+    METHODS validate_bookingfee FOR VALIDATE ON SAVE
+      IMPORTING keys FOR zifv_cds_travel~validate_bookingfee.
+
+    METHODS validate_currencycode FOR VALIDATE ON SAVE
+      IMPORTING keys FOR zifv_cds_travel~validate_currencycode.
+
+    METHODS validate_dates FOR VALIDATE ON SAVE
+      IMPORTING keys FOR zifv_cds_travel~validate_dates.
+
+    METHODS validate_status FOR VALIDATE ON SAVE
+      IMPORTING keys FOR zifv_cds_travel~validate_status.
 
     METHODS earlynumbering_cba_booking FOR NUMBERING
       IMPORTING entities FOR CREATE zifv_cds_travel\_booking.
@@ -128,20 +143,20 @@ CLASS lhc_ZIFV_CDS_TRAVEL IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD acceptTravel.
-  MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
-  ENTITY zifv_cds_travel
-   UPDATE FIELDS ( OverallStatus )
-   WITH VALUE #( FOR ls_keys IN keys ( %tky = ls_keys-%tky
-                                       OverallStatus = 'A' ) ).
+    MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
+    ENTITY zifv_cds_travel
+     UPDATE FIELDS ( OverallStatus )
+     WITH VALUE #( FOR ls_keys IN keys ( %tky = ls_keys-%tky
+                                         OverallStatus = 'A' ) ).
 
-  READ ENTITIES OF zifv_cds_travel  IN LOCAL MODE
-  ENTITY zifv_cds_travel
-  ALL FIELDS WITH CORRESPONDING #( keys )
-  RESULT DATA(lt_result).
-  .
+    READ ENTITIES OF zifv_cds_travel  IN LOCAL MODE
+    ENTITY zifv_cds_travel
+    ALL FIELDS WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_result).
+    .
 
-  result  = VALUE #( FOR ls_result IN lt_result ( %tky = ls_result-%tky
-                                               %param  =  ls_result ) ).
+    result  = VALUE #( FOR ls_result IN lt_result ( %tky = ls_result-%tky
+                                                 %param  =  ls_result ) ).
 
   ENDMETHOD.
 
@@ -261,20 +276,165 @@ CLASS lhc_ZIFV_CDS_TRAVEL IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD rejectTravel.
-  MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
- ENTITY zifv_cds_travel
-  UPDATE FIELDS ( OverallStatus )
-  WITH VALUE #( FOR ls_keys IN keys ( %tky = ls_keys-%tky
-                                      OverallStatus = 'X' ) ).
+    MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
+   ENTITY zifv_cds_travel
+    UPDATE FIELDS ( OverallStatus )
+    WITH VALUE #( FOR ls_keys IN keys ( %tky = ls_keys-%tky
+                                        OverallStatus = 'X' ) ).
 
-  READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
-  ENTITY zifv_cds_travel
-  ALL FIELDS WITH CORRESPONDING #( keys )
-  RESULT DATA(lt_result).
-  .
+    READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
+    ENTITY zifv_cds_travel
+    ALL FIELDS WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_result).
+    .
 
-  result  = VALUE #( FOR ls_result IN lt_result ( %tky = ls_result-%tky
-                                               %param  =  ls_result ) ).
+    result  = VALUE #( FOR ls_result IN lt_result ( %tky = ls_result-%tky
+                                                 %param  =  ls_result ) ).
+  ENDMETHOD.
+
+  METHOD get_instance_features.
+
+    READ ENTITIES OF  zifv_cds_travel IN LOCAL MODE
+    ENTITY  zifv_cds_travel
+    FIELDS ( TravelId OverallStatus )
+    WITH CORRESPONDING #( keys )
+    RESULT DATA(it_travel).
+
+    result = VALUE #( FOR ls_travel IN it_travel
+                      ( %key = ls_travel-%key
+                        %features-%action-acceptTravel = COND #( WHEN ls_travel-OverallStatus = 'A'
+                                                                         THEN if_abap_behv=>fc-o-disabled
+                                                                           ELSE if_abap_behv=>fc-o-enabled )
+                       %features-%action-rejectTravel = COND #( WHEN ls_travel-OverallStatus = 'X'
+                                                                         THEN if_abap_behv=>fc-o-disabled
+                                                                           ELSE if_abap_behv=>fc-o-enabled )
+                       %features-%assoc-_Booking = COND #( WHEN ls_travel-OverallStatus = 'X'
+                                                                         THEN if_abap_behv=>fc-o-disabled
+                                                                           ELSE if_abap_behv=>fc-o-enabled )
+                        )
+                     ).
+
+  ENDMETHOD.
+
+  METHOD validate_customer.
+
+    READ ENTITY IN LOCAL MODE zifv_cds_travel
+    FIELDS ( CustomerId )
+    WITH CORRESPONDING #( keys )
+    RESULT DATA(it_travel).
+
+    DATA: lt_cust TYPE SORTED TABLE OF /dmo/customer WITH UNIQUE KEY customer_id.
+
+    lt_cust = CORRESPONDING #( it_travel DISCARDING DUPLICATES MAPPING customer_id = CustomerId  ).
+    DELETE lt_cust WHERE customer_id IS INITIAL.
+
+    IF lt_cust IS NOT INITIAL.
+      SELECT
+      FROM /dmo/customer
+      FIELDS customer_id
+      FOR ALL ENTRIES IN @lt_cust
+      WHERE customer_id = @lt_cust-customer_id
+      INTO TABLE @DATA(it_customr).
+      IF  sy-subrc IS INITIAL.
+      ENDIF.
+    ENDIF.
+
+    LOOP AT it_travel ASSIGNING FIELD-SYMBOL(<fs_travel>).
+
+      IF <fs_travel>-CustomerId IS INITIAL
+          OR NOT line_exists( it_customr[ customer_id = <fs_travel>-CustomerId ] )   .
+
+        APPEND VALUE #( %tky = <fs_travel>-%tky ) TO failed-zifv_cds_travel.
+        APPEND VALUE #( %tky = <fs_travel>-%tky
+                        %msg = NEW /dmo/cm_flight_messages(
+                                                             textid      =  /dmo/cm_flight_messages=>customer_unkown
+                                                             customer_id = <fs_travel>-CustomerId
+                                                             severity    =  if_abap_behv_message=>severity-error )
+                        %element-customerid =  if_abap_behv=>mk-on
+
+
+                                                              ) TO reported-zifv_cds_travel.
+
+      ENDIF.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD validate_BookingFee.
+  ENDMETHOD.
+
+  METHOD validate_CurrencyCode.
+  ENDMETHOD.
+
+  METHOD validate_Dates.
+
+    READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
+                ENTITY zifv_cds_travel
+                  FIELDS ( BeginDate EndDate )
+                  WITH CORRESPONDING #( keys )
+                RESULT DATA(lt_travels).
+
+    LOOP AT lt_travels INTO DATA(travel).
+
+      IF travel-EndDate < travel-BeginDate.  "end_date before begin_date
+
+        APPEND VALUE #( %tky = travel-%tky ) TO failed-zifv_cds_travel.
+
+        APPEND VALUE #( %tky = travel-%tky
+                        %msg = NEW /dmo/cm_flight_messages(
+                                   textid     = /dmo/cm_flight_messages=>begin_date_bef_end_date
+                                   severity   = if_abap_behv_message=>severity-error
+                                   begin_date = travel-BeginDate
+                                   end_date   = travel-EndDate
+                                   travel_id  = travel-TravelId )
+                        %element-BeginDate   = if_abap_behv=>mk-on
+                        %element-EndDate     = if_abap_behv=>mk-on
+                     ) TO reported-zifv_cds_travel.
+
+      ELSEIF travel-BeginDate < cl_abap_context_info=>get_system_date( ).  "begin_date must be in the future
+
+        APPEND VALUE #( %tky        = travel-%tky ) TO failed-zifv_cds_travel.
+
+        APPEND VALUE #( %tky = travel-%tky
+                        %msg = NEW /dmo/cm_flight_messages(
+                                    textid   = /dmo/cm_flight_messages=>begin_date_on_or_bef_sysdate
+                                    severity = if_abap_behv_message=>severity-error )
+                        %element-BeginDate  = if_abap_behv=>mk-on
+                        %element-EndDate    = if_abap_behv=>mk-on
+                      ) TO reported-zifv_cds_travel.
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD validate_Status.
+
+    READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
+      ENTITY zifv_cds_travel
+        FIELDS ( OverallStatus )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_travels).
+
+    LOOP AT lt_travels INTO DATA(ls_travel).
+      CASE ls_travel-OverallStatus.
+        WHEN 'O'.  " Open
+        WHEN 'X'.  " Cancelled
+        WHEN 'A'.  " Accepted
+
+        WHEN OTHERS.
+          APPEND VALUE #( %tky = ls_travel-%tky ) TO failed-zifv_cds_travel.
+
+          APPEND VALUE #( %tky = ls_travel-%tky
+                          %msg = NEW /dmo/cm_flight_messages(
+                                     textid = /dmo/cm_flight_messages=>status_invalid
+                                     severity = if_abap_behv_message=>severity-error
+                                     status = ls_travel-OverallStatus )
+                          %element-OverallStatus = if_abap_behv=>mk-on
+                        ) TO reported-zifv_cds_travel.
+      ENDCASE.
+    ENDLOOP.
+
   ENDMETHOD.
 
 ENDCLASS.

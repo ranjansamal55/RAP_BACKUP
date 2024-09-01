@@ -1,4 +1,4 @@
-managed ;// implementation in class zbp_ifv_cds_travel unique;
+managed;// implementation in class zbp_ifv_cds_travel unique;
 strict ( 2 );
 
 define behavior for ZIFV_CDS_TRAVEL //alias <alias_name>
@@ -10,18 +10,24 @@ etag master LastChangedAt
 early numbering
 
 {
-action acceptTravel result [1] $self;
-action rejectTravel result [1] $self;
+  field ( readonly ) TravelId, CreatedAt, CreatedBy, LastChangedAt, LastChangedBy;
+  field ( mandatory ) AgencyId, CustomerId, BeginDate, EndDate, OverallStatus, BookingFee, CurrencyCode;
+  action ( features : instance ) acceptTravel result [1] $self;
+  action ( features : instance ) rejectTravel result [1] $self;
 
-factory action copyTravel [1];
+  factory action copyTravel [1];
+  internal action recalcTotPrice;
 
-internal action recalcTotPrice;
+  validation validate_customer on save { create; field CustomerId; }
+  validation validate_Dates on save { create; field BeginDate, EndDate; }
+  validation validate_Status on save { create; field OverallStatus; }
+  validation validate_CurrencyCode on save { create; field CurrencyCode; }
+  validation validate_BookingFee on save { create; field BookingFee; }
 
   create;
   update;
   delete;
-  field ( readonly ) TravelId;
-  association _Booking { create; }
+  association _Booking { create ( features : instance ); }
   mapping for zdb_travel_srs
     {
       TravelId      = travel_id;
@@ -51,11 +57,19 @@ early numbering
 {
   update;
   delete;
-  field ( readonly ) TravelId, BookingId;
-//  field ( readonly )  TravelId;
+  field ( readonly ) TravelId, BookingId, LastChangedAt;
+  field ( mandatory ) CarrierId, ConnectionId, FlightDate, BookingStatus;
+  field ( mandatory : create, readonly : update ) CustomerId, BookingDate;
+
+  validation validate_Status on save { create; field BookingStatus; }
+  validation validate_Customer on save { create; field CustomerId; }
+  validation validate_CurrencyCode on save { create; field CurrencyCode; }
+  validation validate_Connection on save { create; field CarrierId, ConnectionId, FlightDate; }
+  validation validate_FlightPrice on save { create; field FlightPrice; }
+
   association _Travel;
-  association _Bookingsuppl { create; }
-   mapping for zdb_booking_srs
+  association _Bookingsuppl { create ( features : instance ); }
+  mapping for zdb_booking_srs
     {
       TravelId      = travel_id;
       BookingId     = booking_id;
@@ -81,11 +95,16 @@ early numbering
 {
   update;
   delete;
-  field ( readonly ) TravelId, BookingId, BookingSupplementId;
-//    field ( readonly ) TravelId, BookingId;
+  field ( readonly ) TravelId, BookingId, BookingSupplementId, LastChangedAt;
+  field ( mandatory ) SupplementId, Price;
+
+  validation validateCurrencyCode on save { create; field CurrencyCode; }
+  validation validateSupplement on save { create; field SupplementId; }
+  validation validatePrice on save { create; field price; }
+
   association _Travel;
   association _Booking;
-   mapping for zdb_supplier_srs
+  mapping for zdb_supplier_srs
     {
       TravelId            = travel_id;
       BookingId           = booking_id;

@@ -1,4 +1,4 @@
-@EndUserText.label: 'Projection/Consumption View for ZIFV_CDS_TRAVEL'
+ @EndUserText.label: 'Projection/Consumption View for ZIFV_CDS_TRAVEL'
 @AccessControl.authorizationCheck: #NOT_REQUIRED
 @Metadata.allowExtensions: true
 define root view entity ZPCV_ZIFV_CDS_TRAVEL
