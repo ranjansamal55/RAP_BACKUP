@@ -3,23 +3,24 @@ CLASS lhc_zifv_cds_booking DEFINITION INHERITING FROM cl_abap_behavior_handler.
   PRIVATE SECTION.
 
     METHODS earlynumbering_cba_Bookingsupp FOR NUMBERING
-      IMPORTING entities FOR CREATE zifv_cds_booking\_Bookingsuppl.
+      IMPORTING entities FOR CREATE ZIFV_CDS_BOOKING\_Bookingsuppl.
     METHODS get_instance_features FOR INSTANCE FEATURES
-      IMPORTING keys REQUEST requested_features FOR zifv_cds_booking RESULT result.
-    METHODS validate_connection FOR VALIDATE ON SAVE
-      IMPORTING keys FOR zifv_cds_booking~validate_connection.
+      IMPORTING keys REQUEST requested_features FOR ZIFV_CDS_BOOKING RESULT result.
 
-    METHODS validate_currencycode FOR VALIDATE ON SAVE
-      IMPORTING keys FOR zifv_cds_booking~validate_currencycode.
+    METHODS validate_Connection FOR VALIDATE ON SAVE
+      IMPORTING keys FOR ZIFV_CDS_BOOKING~validate_Connection.
 
-    METHODS validate_customer FOR VALIDATE ON SAVE
-      IMPORTING keys FOR zifv_cds_booking~validate_customer.
+    METHODS validate_CurrencyCode FOR VALIDATE ON SAVE
+      IMPORTING keys FOR ZIFV_CDS_BOOKING~validate_CurrencyCode.
 
-    METHODS validate_flightprice FOR VALIDATE ON SAVE
-      IMPORTING keys FOR zifv_cds_booking~validate_flightprice.
+    METHODS validate_Customer FOR VALIDATE ON SAVE
+      IMPORTING keys FOR ZIFV_CDS_BOOKING~validate_Customer.
 
-    METHODS validate_status FOR VALIDATE ON SAVE
-      IMPORTING keys FOR zifv_cds_booking~validate_status.
+    METHODS validate_FlightPrice FOR VALIDATE ON SAVE
+      IMPORTING keys FOR ZIFV_CDS_BOOKING~validate_FlightPrice.
+
+    METHODS validate_Status FOR VALIDATE ON SAVE
+      IMPORTING keys FOR ZIFV_CDS_BOOKING~validate_Status.
 
 ENDCLASS.
 
@@ -27,7 +28,7 @@ CLASS lhc_zifv_cds_booking IMPLEMENTATION.
 
   METHOD earlynumbering_cba_Bookingsupp.
 
-    DATA: max_booking_suppl_id TYPE /dmo/booking_supplement_id .
+  DATA: max_booking_suppl_id TYPE /dmo/booking_supplement_id .
 
     READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
       ENTITY zifv_cds_booking  BY \_Bookingsuppl
@@ -78,21 +79,6 @@ CLASS lhc_zifv_cds_booking IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_instance_features.
-
-    READ ENTITIES OF  zifv_cds_travel IN LOCAL MODE
-  ENTITY  zifv_cds_travel BY \_Booking
-  FIELDS ( TravelId BookingStatus )
-  WITH CORRESPONDING #( keys )
-  RESULT DATA(it_booking).
-
-    result = VALUE #( FOR ls_booking IN it_booking
-                      ( %key = ls_booking-%key
-                       %features-%assoc-_Bookingsuppl = COND #( WHEN ls_booking-BookingStatus = 'X'
-                                                                         THEN if_abap_behv=>fc-o-disabled
-                                                                           ELSE if_abap_behv=>fc-o-enabled )
-                        )
-                     ).
-
   ENDMETHOD.
 
   METHOD validate_Connection.
