@@ -3,24 +3,26 @@ CLASS lhc_zifv_cds_booking DEFINITION INHERITING FROM cl_abap_behavior_handler.
   PRIVATE SECTION.
 
     METHODS earlynumbering_cba_Bookingsupp FOR NUMBERING
-      IMPORTING entities FOR CREATE ZIFV_CDS_BOOKING\_Bookingsuppl.
+      IMPORTING entities FOR CREATE zifv_cds_booking\_Bookingsuppl.
     METHODS get_instance_features FOR INSTANCE FEATURES
-      IMPORTING keys REQUEST requested_features FOR ZIFV_CDS_BOOKING RESULT result.
+      IMPORTING keys REQUEST requested_features FOR zifv_cds_booking RESULT result.
 
     METHODS validate_Connection FOR VALIDATE ON SAVE
-      IMPORTING keys FOR ZIFV_CDS_BOOKING~validate_Connection.
+      IMPORTING keys FOR zifv_cds_booking~validate_Connection.
 
     METHODS validate_CurrencyCode FOR VALIDATE ON SAVE
-      IMPORTING keys FOR ZIFV_CDS_BOOKING~validate_CurrencyCode.
+      IMPORTING keys FOR zifv_cds_booking~validate_CurrencyCode.
 
     METHODS validate_Customer FOR VALIDATE ON SAVE
-      IMPORTING keys FOR ZIFV_CDS_BOOKING~validate_Customer.
+      IMPORTING keys FOR zifv_cds_booking~validate_Customer.
 
     METHODS validate_FlightPrice FOR VALIDATE ON SAVE
-      IMPORTING keys FOR ZIFV_CDS_BOOKING~validate_FlightPrice.
+      IMPORTING keys FOR zifv_cds_booking~validate_FlightPrice.
 
     METHODS validate_Status FOR VALIDATE ON SAVE
-      IMPORTING keys FOR ZIFV_CDS_BOOKING~validate_Status.
+      IMPORTING keys FOR zifv_cds_booking~validate_Status.
+    METHODS calculateTotalPrice FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR zifv_cds_booking~calculateTotalPrice.
 
 ENDCLASS.
 
@@ -28,7 +30,7 @@ CLASS lhc_zifv_cds_booking IMPLEMENTATION.
 
   METHOD earlynumbering_cba_Bookingsupp.
 
-  DATA: max_booking_suppl_id TYPE /dmo/booking_supplement_id .
+    DATA: max_booking_suppl_id TYPE /dmo/booking_supplement_id .
 
     READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
       ENTITY zifv_cds_booking  BY \_Bookingsuppl
@@ -94,6 +96,19 @@ CLASS lhc_zifv_cds_booking IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD validate_Status.
+  ENDMETHOD.
+
+  METHOD calculateTotalPrice.
+
+    DATA: lt_travel TYPE STANDARD TABLE OF zifv_cds_travel WITH UNIQUE HASHED KEY key  COMPONENTS TravelId.
+
+    lt_travel = CORRESPONDING #( keys DISCARDING DUPLICATES MAPPING TravelId = TravelId ).
+
+    MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
+   ENTITY zifv_cds_travel
+   EXECUTE recalcTotPrice
+   FROM CORRESPONDING #( lt_travel ).
+
   ENDMETHOD.
 
 ENDCLASS.

@@ -31,6 +31,8 @@ CLASS lhc_ZIFV_CDS_TRAVEL DEFINITION INHERITING FROM cl_abap_behavior_handler.
 
     METHODS validate_status FOR VALIDATE ON SAVE
       IMPORTING keys FOR zifv_cds_travel~validate_status.
+    METHODS calculatetotalprice FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR zifv_cds_travel~calculatetotalprice.
 
     METHODS earlynumbering_cba_booking FOR NUMBERING
       IMPORTING entities FOR CREATE zifv_cds_travel\_booking.
@@ -145,20 +147,20 @@ CLASS lhc_ZIFV_CDS_TRAVEL IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD acceptTravel.
-  MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
-  ENTITY zifv_cds_travel
-   UPDATE FIELDS ( OverallStatus )
-   WITH VALUE #( FOR ls_keys IN keys ( %tky = ls_keys-%tky
-                                       OverallStatus = 'A' ) ).
+    MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
+    ENTITY zifv_cds_travel
+     UPDATE FIELDS ( OverallStatus )
+     WITH VALUE #( FOR ls_keys IN keys ( %tky = ls_keys-%tky
+                                         OverallStatus = 'A' ) ).
 
-  READ ENTITIES OF zifv_cds_travel  IN LOCAL MODE
-  ENTITY zifv_cds_travel
-  ALL FIELDS WITH CORRESPONDING #( keys )
-  RESULT DATA(lt_result).
-  .
+    READ ENTITIES OF zifv_cds_travel  IN LOCAL MODE
+    ENTITY zifv_cds_travel
+    ALL FIELDS WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_result).
+    .
 
-  result  = VALUE #( FOR ls_result IN lt_result ( %tky = ls_result-%tky
-                                               %param  =  ls_result ) ).
+    result  = VALUE #( FOR ls_result IN lt_result ( %tky = ls_result-%tky
+                                                 %param  =  ls_result ) ).
 
   ENDMETHOD.
 
@@ -276,50 +278,67 @@ CLASS lhc_ZIFV_CDS_TRAVEL IMPLEMENTATION.
 
   METHOD recalcTotPrice.
 
-    MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
+    READ ENTITIES OF   zifv_cds_travel IN LOCAL MODE
     ENTITY zifv_cds_travel
-    EXECUTE recalcTotPrice
-    FROM CORRESPONDING #( keys ).
+    FIELDS ( bookingfee currencycode )
+    WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_travel).
+
+    READ ENTITIES OF   zifv_cds_travel IN LOCAL MODE
+    ENTITY zifv_cds_travel BY \_Booking
+    FIELDS ( FlightPrice currencycode )
+    WITH CORRESPONDING #( lt_travel )
+    RESULT DATA(lt_booking).
+
+    READ ENTITIES OF   zifv_cds_travel IN LOCAL MODE
+    ENTITY zifv_cds_booking BY \_Bookingsuppl
+    FIELDS ( Price currencycode )
+    WITH CORRESPONDING #( lt_booking )
+    RESULT DATA(lt_booksupple).
+
+
+
+
   ENDMETHOD.
 
   METHOD rejectTravel.
-  MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
- ENTITY zifv_cds_travel
-  UPDATE FIELDS ( OverallStatus )
-  WITH VALUE #( FOR ls_keys IN keys ( %tky = ls_keys-%tky
-                                      OverallStatus = 'X' ) ).
+    MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
+   ENTITY zifv_cds_travel
+    UPDATE FIELDS ( OverallStatus )
+    WITH VALUE #( FOR ls_keys IN keys ( %tky = ls_keys-%tky
+                                        OverallStatus = 'X' ) ).
 
-  READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
-  ENTITY zifv_cds_travel
-  ALL FIELDS WITH CORRESPONDING #( keys )
-  RESULT DATA(lt_result).
-  .
+    READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
+    ENTITY zifv_cds_travel
+    ALL FIELDS WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_result).
+    .
 
-  result  = VALUE #( FOR ls_result IN lt_result ( %tky = ls_result-%tky
-                                               %param  =  ls_result ) ).
+    result  = VALUE #( FOR ls_result IN lt_result ( %tky = ls_result-%tky
+                                                 %param  =  ls_result ) ).
   ENDMETHOD.
 
   METHOD get_instance_features.
 
-   READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
-   ENTITY zifv_cds_travel
-   FIELDS ( TravelId OverallStatus )
-   WITH CORRESPONDING #( keys )
-   RESULT DATA(lt_travel).
+    READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
+    ENTITY zifv_cds_travel
+    FIELDS ( TravelId OverallStatus )
+    WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_travel).
 
-  result  = VALUE #( FOR ls_travel IN lt_travel
-                      (  %tky = ls_travel-%tky
-                         %features-%action-acceptTravel = COND #( WHEN ls_travel-OverallStatus = 'A'
-                                                                  THEN if_abap_behv=>fc-o-disabled
-                                                                  ELSE if_abap_behv=>fc-o-enabled )
-                         %features-%action-rejectTravel = COND #( WHEN ls_travel-OverallStatus = 'X'
-                                                                  THEN if_abap_behv=>fc-o-disabled
-                                                                  ELSE if_abap_behv=>fc-o-enabled )
-                         %features-%assoc-_Booking  = COND #( WHEN ls_travel-OverallStatus = 'X'
-                                                                  THEN if_abap_behv=>fc-o-disabled
-                                                                  ELSE if_abap_behv=>fc-o-enabled )
-                                                                   )
-                 ).
+    result  = VALUE #( FOR ls_travel IN lt_travel
+                        (  %tky = ls_travel-%tky
+                           %features-%action-acceptTravel = COND #( WHEN ls_travel-OverallStatus = 'A'
+                                                                    THEN if_abap_behv=>fc-o-disabled
+                                                                    ELSE if_abap_behv=>fc-o-enabled )
+                           %features-%action-rejectTravel = COND #( WHEN ls_travel-OverallStatus = 'X'
+                                                                    THEN if_abap_behv=>fc-o-disabled
+                                                                    ELSE if_abap_behv=>fc-o-enabled )
+                           %features-%assoc-_Booking  = COND #( WHEN ls_travel-OverallStatus = 'X'
+                                                                    THEN if_abap_behv=>fc-o-disabled
+                                                                    ELSE if_abap_behv=>fc-o-enabled )
+                                                                     )
+                   ).
 
 
   ENDMETHOD.
@@ -331,21 +350,21 @@ CLASS lhc_ZIFV_CDS_TRAVEL IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD validate_customer.
-  READ ENTITY  IN LOCAL MODE zifv_cds_travel
-   FIELDS ( CustomerId )
-   WITH CORRESPONDING #( keys )
-   RESULT DATA(lt_travel).
+    READ ENTITY  IN LOCAL MODE zifv_cds_travel
+     FIELDS ( CustomerId )
+     WITH CORRESPONDING #( keys )
+     RESULT DATA(lt_travel).
 
-  DATA: lt_cust TYPE SORTED TABLE OF /dmo/customer WITH UNIQUE KEY customer_id.
+    DATA: lt_cust TYPE SORTED TABLE OF /dmo/customer WITH UNIQUE KEY customer_id.
 
-  lt_cust = CORRESPONDING #( lt_travel DISCARDING DUPLICATES MAPPING customer_id = CustomerId  ).
-  DELETE lt_cust WHERE customer_id IS INITIAL.
-  SELECT
-   FROM /dmo/customer
-   FIELDS customer_id
-   FOR ALL ENTRIES IN @lt_cust
-   WHERE customer_id = @lt_cust-customer_id
-   INTO TABLE @DATA(lt_cust_db).
+    lt_cust = CORRESPONDING #( lt_travel DISCARDING DUPLICATES MAPPING customer_id = CustomerId  ).
+    DELETE lt_cust WHERE customer_id IS INITIAL.
+    SELECT
+     FROM /dmo/customer
+     FIELDS customer_id
+     FOR ALL ENTRIES IN @lt_cust
+     WHERE customer_id = @lt_cust-customer_id
+     INTO TABLE @DATA(lt_cust_db).
     IF sy-subrc IS INITIAL.
 
     ENDIF.
@@ -377,11 +396,11 @@ CLASS lhc_ZIFV_CDS_TRAVEL IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD validate_Dates.
-   READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
-              ENTITY zifv_cds_travel
-                FIELDS ( BeginDate EndDate )
-                WITH CORRESPONDING #( keys )
-              RESULT DATA(lt_travels).
+    READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
+               ENTITY zifv_cds_travel
+                 FIELDS ( BeginDate EndDate )
+                 WITH CORRESPONDING #( keys )
+               RESULT DATA(lt_travels).
 
     LOOP AT lt_travels INTO DATA(travel).
 
@@ -418,11 +437,11 @@ CLASS lhc_ZIFV_CDS_TRAVEL IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD validate_Status.
-      READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
-        ENTITY zifv_cds_travel
-          FIELDS ( OverallStatus )
-          WITH CORRESPONDING #( keys )
-        RESULT DATA(lt_travels).
+    READ ENTITIES OF zifv_cds_travel IN LOCAL MODE
+      ENTITY zifv_cds_travel
+        FIELDS ( OverallStatus )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_travels).
 
     LOOP AT lt_travels INTO DATA(ls_travel).
       CASE ls_travel-OverallStatus.
@@ -442,6 +461,15 @@ CLASS lhc_ZIFV_CDS_TRAVEL IMPLEMENTATION.
                         ) TO reported-zifv_cds_travel.
       ENDCASE.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD calculateTotalPrice.
+    MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
+    ENTITY zifv_cds_travel
+    EXECUTE recalcTotPrice
+    FROM CORRESPONDING #( keys ).
+
+
   ENDMETHOD.
 
 ENDCLASS.

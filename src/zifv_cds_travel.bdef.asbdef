@@ -24,6 +24,8 @@ early numbering
   validation validate_CurrencyCode on save { create; field CurrencyCode; }
   validation validate_BookingFee on save { create; field BookingFee; }
 
+  determination calculateTotalPrice on modify { create; field BookingFee ,CurrencyCode;}
+
   create;
   update;
   delete;
@@ -55,6 +57,7 @@ authorization dependent by _Travel
 etag master LastChangedAt
 early numbering
 {
+
   update;
   delete;
   field ( readonly ) TravelId, BookingId, LastChangedAt;
@@ -66,6 +69,8 @@ early numbering
   validation validate_CurrencyCode on save { create; field CurrencyCode; }
   validation validate_Connection on save { create; field CarrierId, ConnectionId, FlightDate; }
   validation validate_FlightPrice on save { create; field FlightPrice; }
+
+ determination calculateTotalPrice on modify { create; field FlightPrice ,CurrencyCode;}
 
   association _Travel;
   association _Bookingsuppl { create ( features : instance ); }
@@ -101,6 +106,8 @@ early numbering
   validation validateCurrencyCode on save { create; field CurrencyCode; }
   validation validateSupplement on save { create; field SupplementId; }
   validation validatePrice on save { create; field price; }
+
+   determination calculateTotalPrice on modify { create; field Price  ,CurrencyCode;}
 
   association _Travel;
   association _Booking;
