@@ -1,9 +1,11 @@
-managed;// implementation in class zbp_ifv_cds_travel unique;
+//managed with additional save implementation in class ydb_save unique;// implementation in class zbp_ifv_cds_travel unique;
+managed  implementation in class zcl_bp_ifv_cds_travel unique;
 strict ( 2 );
 
 define behavior for ZIFV_CDS_TRAVEL //alias <alias_name>
 implementation in class zcl_bp_ifv_cds_travel unique
 persistent table zdb_travel_srs
+with additional save
 lock master
 authorization master ( instance )
 etag master LastChangedAt

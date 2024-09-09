@@ -1,3 +1,127 @@
+CLASS lsc_zifv_cds_travel DEFINITION INHERITING FROM cl_abap_behavior_saver.
+
+  PROTECTED SECTION.
+
+    METHODS save_modified REDEFINITION.
+
+ENDCLASS.
+
+CLASS lsc_zifv_cds_travel IMPLEMENTATION.
+
+  METHOD save_modified.
+    DATA: lt_travel_log   TYPE STANDARD TABLE OF zdb_log_tab_srs,
+          lt_travel_log_c TYPE STANDARD TABLE OF zdb_log_tab_srs,
+          lt_travel_log_u TYPE STANDARD TABLE OF zdb_log_tab_srs.
+
+    IF create-zifv_cds_travel IS NOT INITIAL.
+
+      lt_travel_log = CORRESPONDING #( create-zifv_cds_travel ).
+
+      LOOP AT lt_travel_log ASSIGNING FIELD-SYMBOL(<fs_travel_log>).
+
+        <fs_travel_log>-changing_operation = 'Create'.
+
+        GET TIME STAMP FIELD <fs_travel_log>-created_at.
+
+        READ TABLE create-zifv_cds_travel ASSIGNING FIELD-SYMBOL(<fs_cds_trvel>)
+                                          WITH TABLE KEY entity
+                                          COMPONENTS TravelId = <fs_travel_log>-travelid.
+
+        IF sy-subrc IS INITIAL.
+
+          IF <fs_cds_trvel>-%control-BookingFee = cl_abap_behv=>flag_changed.
+
+            <fs_travel_log>-changed_field_name = 'Booking Fee'.
+            <fs_travel_log>-changed_value = <fs_cds_trvel>-BookingFee.
+            TRY.
+                <fs_travel_log>-change_id = cl_system_uuid=>create_uuid_x16_static( ).
+              CATCH cx_uuid_error.
+                "handle exception
+            ENDTRY.
+
+            APPEND <fs_travel_log> TO lt_travel_log_c.
+
+          ENDIF.
+
+          IF <fs_cds_trvel>-%control-OverallStatus = cl_abap_behv=>flag_changed.
+
+            <fs_travel_log>-changed_field_name = 'Overall Status'.
+            <fs_travel_log>-changed_value = <fs_cds_trvel>-OverallStatus.
+            TRY.
+                <fs_travel_log>-change_id = cl_system_uuid=>create_uuid_x16_static( ).
+              CATCH cx_uuid_error.
+                "handle exception
+            ENDTRY.
+            APPEND <fs_travel_log> TO lt_travel_log_c.
+
+          ENDIF.
+
+        ENDIF.
+
+      ENDLOOP.
+
+      INSERT  zdb_log_tab_srs FROM TABLE @lt_travel_log_c.
+
+    ENDIF.
+
+    IF  update-zifv_cds_travel IS NOT INITIAL.
+
+      lt_travel_log = CORRESPONDING #( update-zifv_cds_travel ).
+
+      LOOP AT update-zifv_cds_travel ASSIGNING FIELD-SYMBOL(<ls_log_update>).
+
+        ASSIGN lt_travel_log[ travelid = <ls_log_update>-travelid ] TO FIELD-SYMBOL(<ls_log_u>).
+
+        <ls_log_u>-changing_operation = 'UPDATE'.
+        GET TIME STAMP FIELD <ls_log_u>-created_at.
+
+        IF <ls_log_update>-%control-customerid = if_abap_behv=>mk-on.
+          <ls_log_u>-changed_value = <ls_log_update>-customerid.
+          TRY.
+              <ls_log_u>-change_id = cl_system_uuid=>create_uuid_x16_static( ) .
+            CATCH cx_uuid_error.
+          ENDTRY.
+          <ls_log_u>-changed_field_name = 'customer_id'.
+          APPEND <ls_log_u> TO lt_travel_log_u.
+        ENDIF.
+
+        IF <ls_log_update>-%control-description = if_abap_behv=>mk-on.
+          <ls_log_u>-changed_value = <ls_log_update>-description.
+          TRY.
+              <ls_log_u>-change_id = cl_system_uuid=>create_uuid_x16_static( ) .
+            CATCH cx_uuid_error.
+          ENDTRY.
+          <ls_log_u>-changed_field_name = 'description'.
+          APPEND <ls_log_u> TO lt_travel_log_u.
+        ENDIF.
+      ENDLOOP.
+      INSERT zdb_log_tab_srs FROM TABLE @lt_travel_log_u.
+    ENDIF.
+
+
+    IF  delete-zifv_cds_travel IS NOT INITIAL.
+
+      lt_travel_log = CORRESPONDING #( delete-zifv_cds_travel ).
+      LOOP AT lt_travel_log ASSIGNING FIELD-SYMBOL(<ls_log_del>).
+        <ls_log_del>-changing_operation = 'DELETE'.
+        GET TIME STAMP FIELD <ls_log_del>-created_at.
+        TRY.
+            <ls_log_del>-change_id = cl_system_uuid=>create_uuid_x16_static( ) .
+          CATCH cx_uuid_error.
+            "handle exception
+        ENDTRY.
+      ENDLOOP.
+
+      " Inserts rows specified in lt_travel_log into the DB table /dmo/log_travel
+      INSERT zdb_log_tab_srs FROM TABLE @lt_travel_log.
+
+    ENDIF.
+
+
+  ENDMETHOD.
+
+ENDCLASS.
+
 CLASS lhc_ZIFV_CDS_TRAVEL DEFINITION INHERITING FROM cl_abap_behavior_handler.
   PRIVATE SECTION.
 
@@ -278,11 +402,21 @@ CLASS lhc_ZIFV_CDS_TRAVEL IMPLEMENTATION.
 
   METHOD recalcTotPrice.
 
+    TYPES: BEGIN OF ty_total,
+             price TYPE /dmo/total_price,
+             curr  TYPE /dmo/currency_code,
+           END OF TY_TOtAL.
+
+    DATA:it_total      TYPE TABLE OF TY_TOtAL,
+         lv_conv_price TYPE ty_total-price.
+
     READ ENTITIES OF   zifv_cds_travel IN LOCAL MODE
     ENTITY zifv_cds_travel
     FIELDS ( bookingfee currencycode )
     WITH CORRESPONDING #( keys )
     RESULT DATA(lt_travel).
+
+    DELETE lt_travel WHERE CurrencyCode IS INITIAL.
 
     READ ENTITIES OF   zifv_cds_travel IN LOCAL MODE
     ENTITY zifv_cds_travel BY \_Booking
@@ -296,7 +430,59 @@ CLASS lhc_ZIFV_CDS_TRAVEL IMPLEMENTATION.
     WITH CORRESPONDING #( lt_booking )
     RESULT DATA(lt_booksupple).
 
+    LOOP AT lt_travel ASSIGNING FIELD-SYMBOL(<fs_travel>).
 
+      it_total = VALUE #( ( price = <fs_travel>-BookingFee curr = <fs_travel>-CurrencyCode ) ).
+
+      LOOP AT lt_booking ASSIGNING FIELD-SYMBOL(<fs_booking>)
+                                          USING KEY entity
+                                          WHERE TravelId = <fs_travel>-TravelId
+                                          AND CurrencyCode IS NOT INITIAL .
+
+        APPEND VALUE #(  price = <fs_booking>-FlightPrice  curr =  <fs_booking>-CurrencyCode  )  TO it_total.
+
+        LOOP AT lt_booksupple ASSIGNING FIELD-SYMBOL(<fs_booksupple>)
+                                            USING KEY entity
+                                            WHERE TravelId = <fs_booking>-TravelId
+                                            AND   BookingId = <fs_booking>-BookingId
+                                            AND CurrencyCode IS NOT INITIAL.
+
+          APPEND VALUE #(  price = <fs_booksupple>-Price  curr =  <fs_booksupple>-CurrencyCode  )  TO it_total.
+
+        ENDLOOP.
+
+      ENDLOOP.
+
+      LOOP AT it_total ASSIGNING FIELD-SYMBOL(<fs_total>).
+
+        IF  <fs_total>-curr = <fs_travel>-CurrencyCode.
+
+          lv_conv_price = <fs_total>-price..
+        ELSE.
+
+          /dmo/cl_flight_amdp=>convert_currency(
+            EXPORTING
+              iv_amount               =  <fs_total>-price
+              iv_currency_code_source =  <fs_total>-curr
+              iv_currency_code_target =  <fs_travel>-CurrencyCode
+              iv_exchange_rate_date   =  cl_abap_context_info=>get_system_date( )
+            IMPORTING
+              ev_amount               =  lv_conv_price
+          ).
+
+        ENDIF.
+
+        <fs_travel>-TotalPrice =   <fs_travel>-TotalPrice + lv_conv_price.
+
+      ENDLOOP.
+
+
+    ENDLOOP.
+
+    MODIFY ENTITIES OF zifv_cds_travel IN LOCAL MODE
+  ENTITY zifv_cds_travel
+  UPDATE FIELDS ( TotalPrice )
+  WITH CORRESPONDING #( lt_travel ).
 
 
   ENDMETHOD.
