@@ -94,8 +94,9 @@ early numbering
 
 define behavior for ZIFV_CDS_SUPPLIER //alias <alias_name>
 implementation in class zcl_bp_IFV_CDS_SUPPLIER unique
-persistent table zdb_supplier_srs
+//persistent table zdb_supplier_srs
 lock dependent by _Travel
+with unmanaged save with full data
 authorization dependent by _Travel
 etag master LastChangedAt
 early numbering

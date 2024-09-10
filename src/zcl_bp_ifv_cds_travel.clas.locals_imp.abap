@@ -117,6 +117,46 @@ CLASS lsc_zifv_cds_travel IMPLEMENTATION.
 
     ENDIF.
 
+******************************************************************************************************
+******************************************************************************************************
+
+    DATA: lt_book_suppl TYPE STANDARD TABLE OF zdb_supplier_srs.
+
+    IF create-zifv_cds_supplier IS NOT INITIAL.
+
+      lt_book_suppl = VALUE #( FOR ls_booksup IN  create-zifv_cds_supplier (
+                                          travel_id              = ls_booksup-TravelId
+                                          booking_id             = ls_booksup-BookingId
+                                          booking_supplement_id  = ls_booksup-BookingSupplementId
+                                          supplement_id          = ls_booksup-SupplementId
+                                          price                  = ls_booksup-Price
+                                          currency_code          = ls_booksup-CurrencyCode
+                                          last_changed_at        = ls_booksup-LastChangedAt )  ).
+      INSERT zdb_supplier_srs FROM TABLE @lt_book_suppl.
+    ENDIF.
+
+    IF update-zifv_cds_supplier IS NOT INITIAL.
+
+      lt_book_suppl = VALUE #( FOR ls_booksup IN  update-zifv_cds_supplier (
+                                         travel_id              = ls_booksup-TravelId
+                                         booking_id             = ls_booksup-BookingId
+                                         booking_supplement_id  = ls_booksup-BookingSupplementId
+                                         supplement_id          = ls_booksup-SupplementId
+                                         price                  = ls_booksup-Price
+                                         currency_code          = ls_booksup-CurrencyCode
+                                         last_changed_at        = ls_booksup-LastChangedAt )  ).
+
+      UPDATE zdb_supplier_srs FROM TABLE @lt_book_suppl.
+    ENDIF.
+
+    IF delete-zifv_cds_supplier IS NOT INITIAL.
+
+      lt_book_suppl = VALUE #( FOR ls_del IN  delete-zifv_cds_supplier (
+                                            travel_id              = ls_del-TravelId
+                                            booking_id             = ls_del-BookingId
+                                            booking_supplement_id  = ls_del-BookingSupplementId )  ).
+      INSERT zdb_supplier_srs FROM TABLE @lt_book_suppl.
+    ENDIF.
 
   ENDMETHOD.
 
